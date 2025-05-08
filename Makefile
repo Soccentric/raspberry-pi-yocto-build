@@ -1,7 +1,10 @@
 SHELL := /bin/bash
 .SHELLFLAGS := -ec -o pipefail
 
-# Configuration variables
+# Load configuration variables from .env file
+-include .env
+
+# Configuration variables with defaults if not in .env
 KAS_FILE ?= kas/kas-poky-jetson.yml
 KAS_MACHINE ?= raspberrypi4
 KAS_DISTRO ?= poky
