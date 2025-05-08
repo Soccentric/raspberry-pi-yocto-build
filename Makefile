@@ -17,8 +17,11 @@ KAS_BBLAYERS_FILE ?= bblayers.yml
 KAS_CMD := kas
 RM := rm
 MKDIR := mkdir -p
+CP := cp -v
+DATE := $(shell date +%Y-%m-%d_%H-%M-%S)
+ARTIFACTS_DIR := artifacts/$(DATE)
 
-.PHONY: all build menu shell clean help status list-images flash info
+.PHONY: all build menu shell clean help status list-images flash info sdk esdk copy-artifacts cleanall cleansstate cleandownloads cleanmachine
 
 # Export variables so that included kas files can access them
 export KAS_MACHINE KAS_DISTRO KAS_IMAGE KAS_REPOS_FILE KAS_LOCAL_CONF_FILE KAS_BBLAYERS_FILE
@@ -29,6 +32,17 @@ all: help
 # Build the image defined in the KAS_FILE
 build:
 	$(KAS_CMD) build $(KAS_FILE)
+	@$(MAKE) copy-artifacts
+
+# Build the SDK for the specified image
+sdk:
+	$(KAS_CMD) shell $(KAS_FILE) -c "bitbake -c populate_sdk $(KAS_IMAGE)"
+	@$(MAKE) copy-artifacts SDK=1
+
+# Build the extensible SDK for the specified image
+esdk:
+	$(KAS_CMD) shell $(KAS_FILE) -c "bitbake -c populate_sdk_ext $(KAS_IMAGE)"
+	@$(MAKE) copy-artifacts ESDK=1
 
 # Launch the bitbake terminal UI for the configuration in KAS_FILE
 menu:
@@ -38,10 +52,25 @@ menu:
 shell:
 	$(KAS_CMD) shell $(KAS_FILE)
 
-# Clean the build output
+# Clean the build output using bitbake
 clean:
-	$(RM) -rf build/tmp # Adjust this path if your TMPDIR is different
-	$(RM) -rf build/sstate-cache # Adjust if your SSTATE_DIR is different
+	$(KAS_CMD) shell $(KAS_FILE) -c "bitbake -c clean $(KAS_IMAGE)"
+	@echo "Basic clean completed for $(KAS_IMAGE)"
+
+# Clean all build output including tmp directory
+cleanall:
+	$(KAS_CMD) shell $(KAS_FILE) -c "rm -rf tmp"
+	@echo "Complete build directory cleaned"
+
+# Clean the shared state cache
+cleansstate:
+	$(KAS_CMD) shell $(KAS_FILE) -c "bitbake -c cleansstate $(KAS_IMAGE)"
+	@echo "Sstate cache cleaned for $(KAS_IMAGE)"
+
+# Clean the downloads directory
+cleandownloads:
+	$(KAS_CMD) shell $(KAS_FILE) -c "rm -rf downloads"
+	@echo "Downloads directory cleaned"
 
 # Clean only specific machine output
 cleanmachine:
@@ -83,6 +112,26 @@ flash:
 	sudo dd if=$(IMAGE) of=$(DEVICE) bs=4M status=progress && sync
 	@echo "Image flashed successfully to $(DEVICE)"
 
+# Copy built artifacts to dated artifacts directory
+copy-artifacts:
+	@$(MKDIR) $(ARTIFACTS_DIR)/images
+	@echo "Copying artifacts to $(ARTIFACTS_DIR)"
+	@if [ -d "build/tmp/deploy/images/$(KAS_MACHINE)" ]; then \
+		find build/tmp/deploy/images/$(KAS_MACHINE) -type f -name "*.wic" -o -name "*.sdimg" -o -name "*.rpi-sdimg" | \
+		xargs -I{} $(CP) {} $(ARTIFACTS_DIR)/images/ 2>/dev/null || \
+		echo "No image artifacts found to copy"; \
+	fi
+	@if [ "$(SDK)" = "1" -o "$(ESDK)" = "1" ]; then \
+		$(MKDIR) $(ARTIFACTS_DIR)/sdk; \
+		find build/tmp/deploy/sdk -type f -name "*.sh" | \
+		xargs -I{} $(CP) {} $(ARTIFACTS_DIR)/sdk/ 2>/dev/null || \
+		echo "No SDK artifacts found to copy"; \
+	fi
+	@echo "Artifacts copied to $(ARTIFACTS_DIR)"
+	@echo "Creating latest symlink"
+	@rm -f artifacts/latest
+	@ln -sf $(DATE) artifacts/latest
+
 # Show build info
 info:
 	@echo "Build environment information:"
@@ -105,10 +154,16 @@ help:
 	@echo ""
 	@echo "Targets:"
 	@echo "  all            Default target, displays this help message."
-	@echo "  build          Build the image defined in the KAS_FILE."
+	@echo "  build          Build the image defined in the KAS_FILE and copy to artifacts."
+	@echo "  sdk            Build the SDK for the specified image and copy to artifacts."
+	@echo "  esdk           Build the extensible SDK (eSDK) for the specified image and copy to artifacts."
+	@echo "  copy-artifacts Copy built images/SDKs to date-stamped artifacts directory."
 	@echo "  menu           Launch the BitBake ncurses (terminal) UI for interactive build."
 	@echo "  shell          Enter the KAS shell environment for the configuration in KAS_FILE."
-	@echo "  clean          Clean all build output (build/tmp and build/sstate-cache)."
+	@echo "  clean          Clean build output for the specified image using BitBake."
+	@echo "  cleanall       Clean the entire tmp directory for a complete rebuild."
+	@echo "  cleansstate    Clean the shared state cache for the specified image."
+	@echo "  cleandownloads Clean the downloads directory."
 	@echo "  cleanmachine   Clean only specific machine output."
 	@echo "  status         Show the current build status and configuration."
 	@echo "  list-images    List all built images."
