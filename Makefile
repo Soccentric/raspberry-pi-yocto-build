@@ -27,9 +27,9 @@ all: help
 build:
 	$(KAS_CMD) build $(KAS_FILE)
 
-# Launch the KAS menu for the configuration in KAS_FILE
+# Launch the bitbake terminal UI for the configuration in KAS_FILE
 menu:
-	$(KAS_CMD) menu $(KAS_FILE)
+	$(KAS_CMD) shell $(KAS_FILE) -c "bitbake -u ncurses $(KAS_IMAGE)"
 
 # Enter the KAS shell environment for the configuration in KAS_FILE
 shell:
@@ -103,7 +103,7 @@ help:
 	@echo "Targets:"
 	@echo "  all            Default target, displays this help message."
 	@echo "  build          Build the image defined in the KAS_FILE."
-	@echo "  menu           Launch the KAS menu for the configuration in KAS_FILE."
+	@echo "  menu           Launch the BitBake ncurses (terminal) UI for interactive build."
 	@echo "  shell          Enter the KAS shell environment for the configuration in KAS_FILE."
 	@echo "  clean          Clean all build output (build/tmp and build/sstate-cache)."
 	@echo "  cleanmachine   Clean only specific machine output."
