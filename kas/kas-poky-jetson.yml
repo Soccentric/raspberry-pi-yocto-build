@@ -1,9 +1,11 @@
 header:
   version: 8
   includes:
-    - machines/raspberrypi4.yml
-    - distros/poky.yml
-    - images/core-image-base.yml
-    - repos/common.yml
-    - conf/local.yml
-    - conf/bblayers.yml
+    - kas/machines/raspberrypi4.yml
+    - kas/distros/poky.yml
+    - kas/images/core-image-base.yml
+    - kas/repos/common.yml
+    - kas/conf/local.yml
+    - kas/conf/bblayers.yml
+
+machine: raspberrypi4

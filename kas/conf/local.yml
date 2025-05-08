@@ -2,14 +2,16 @@ header:
   version: 8
 
 local_conf_header:
-  reduce_diskspace: |
-    INHERIT += "rm_work_and_downloads"
   standard: |
     CONF_VERSION = "2"
     PACKAGE_CLASSES = "package_rpm"
     SDKMACHINE = "x86_64"
     USER_CLASSES = "buildstats"
     PATCHRESOLVE = "noop"
+
+    # Top level download and sstate cache directories
+    DL_DIR = "${TOPDIR}/../downloads"
+    SSTATE_DIR = "${TOPDIR}/../sstate-cache"
   debug-tweaks: |
     IMAGE_FEATURES += "empty-root-password allow-empty-password allow-root-login post-install-logging"
   diskmon: |

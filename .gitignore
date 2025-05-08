@@ -2,3 +2,5 @@ build/
 layers/
 .venv/
 .vscode/
+sstate-cache/
+downloads/
