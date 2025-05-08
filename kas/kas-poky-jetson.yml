@@ -1,5 +1,12 @@
 header:
   version: 8
+  includes:
+    - machines/raspberrypi4.yml
+    - distros/poky.yml
+    - images/core-image-base.yml
+    - repos/common.yml
+    - conf/local.yml
+    - conf/bblayers.yml
 
 machine: raspberrypi4
 distro: poky

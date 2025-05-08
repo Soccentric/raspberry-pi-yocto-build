@@ -1,0 +1,4 @@
+build/
+layers/
+.venv/
+.vscode/
