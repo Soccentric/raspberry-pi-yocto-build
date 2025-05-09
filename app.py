@@ -5,6 +5,7 @@ import re
 import time
 from datetime import datetime
 import glob
+import sys
 
 # Set page configuration
 st.set_page_config(
@@ -12,6 +13,25 @@ st.set_page_config(
     page_icon="🤖",
     layout="wide",
 )
+
+# Check inotify watches limit
+def check_inotify_limit():
+    try:
+        max_watches = int(subprocess.check_output(["cat", "/proc/sys/fs/inotify/max_user_watches"]).decode("utf-8").strip())
+        if max_watches < 8192:
+            st.warning("""
+            ⚠️ **Low inotify watches limit detected!**
+            
+            Your system has a low limit for inotify watches which may cause the application to crash.
+            Please run the following command to increase the limit:
+            
+            ```bash
+            sudo sh ./increase_inotify_limit.sh
+            ```
+            """)
+    except Exception as e:
+        # Silently pass if we can't check (permission issues, etc.)
+        pass
 
 # Function to read configuration from .env file
 def read_env_config():
@@ -60,13 +80,29 @@ def run_make_command(command, args=None):
     output_placeholder = st.empty()
     output = ""
     
-    while True:
-        line = process.stdout.readline()
-        if not line and process.poll() is not None:
-            break
-        if line:
-            output += line
-            output_placeholder.code(output)
+    # Create a container with fixed height and scrolling for console output
+    with output_placeholder.container():
+        console_output = st.empty()
+        
+        while True:
+            line = process.stdout.readline()
+            if not line and process.poll() is not None:
+                break
+            if line:
+                output += line
+                # Ensure proper HTML escaping to preserve line endings
+                html_safe_output = output.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+                # Apply CSS styling with fixed height, preserve whitespace, and auto-scroll to bottom
+                console_output.markdown(f"""
+                <div id="console-output" style="height: 400px; overflow-y: auto; font-family: monospace; background-color: #f0f0f0; padding: 10px; border-radius: 5px;">
+                <pre style="white-space: pre; overflow-x: auto; line-height: 1.6em; margin: 0;">{html_safe_output}</pre>
+                </div>
+                <script>
+                    // Auto-scroll to bottom of console output
+                    var element = document.getElementById('console-output');
+                    element.scrollTop = element.scrollHeight;
+                </script>
+                """, unsafe_allow_html=True)
     
     return_code = process.wait()
     
@@ -101,31 +137,29 @@ def get_artifacts():
 
 # Main app
 def main():
+    # Check inotify limit at startup
+    check_inotify_limit()
+    
     st.title("🤖 Jetson Build Manager")
     
     # Sidebar navigation
     st.sidebar.title("Navigation")
     page = st.sidebar.radio("Go to", ["Build Configuration", "Build & Execute", "Artifacts", "System Info"])
     
+    # Add a warning about filesystem watching in sidebar
+    st.sidebar.info("If you experience crashes related to 'inotify watch limit reached', run the increase_inotify_limit.sh script.")
+    
     # Read current configuration
     config = read_env_config()
     
     if page == "Build Configuration":
         st.header("Build Configuration")
-        st.info("Configure build parameters. These will be saved to the .env file.")
+        st.info("Configure essential build parameters. These will be saved to the .env file.")
         
-        col1, col2 = st.columns(2)
-        
-        with col1:
-            config['KAS_FILE'] = st.text_input("KAS File", config.get('KAS_FILE', 'kas/kas-poky-jetson.yml'))
-            config['KAS_MACHINE'] = st.text_input("Machine", config.get('KAS_MACHINE', 'raspberrypi4'))
-            config['KAS_DISTRO'] = st.text_input("Distribution", config.get('KAS_DISTRO', 'poky'))
-            config['KAS_IMAGE'] = st.text_input("Image", config.get('KAS_IMAGE', 'core-image-base'))
-        
-        with col2:
-            config['KAS_REPOS_FILE'] = st.text_input("Repos File", config.get('KAS_REPOS_FILE', 'common.yml'))
-            config['KAS_LOCAL_CONF_FILE'] = st.text_input("Local Conf File", config.get('KAS_LOCAL_CONF_FILE', 'local.yml'))
-            config['KAS_BBLAYERS_FILE'] = st.text_input("BBLayers File", config.get('KAS_BBLAYERS_FILE', 'bblayers.yml'))
+        # Simplified configuration with only distro, machine and image
+        config['KAS_MACHINE'] = st.text_input("Machine", config.get('KAS_MACHINE', 'raspberrypi4'))
+        config['KAS_DISTRO'] = st.text_input("Distribution", config.get('KAS_DISTRO', 'poky'))
+        config['KAS_IMAGE'] = st.text_input("Image", config.get('KAS_IMAGE', 'core-image-base'))
         
         if st.button("Save Configuration"):
             save_env_config(config)
@@ -165,7 +199,7 @@ def main():
                 run_make_command("esdk", cmd_args)
     
     elif page == "Artifacts":
-        st.header("Build Artifacts")
+        st.header("📦 Build Artifacts")
         
         artifacts = get_artifacts()
         if not artifacts:
@@ -173,18 +207,58 @@ def main():
         else:
             st.success(f"Found {len(artifacts)} artifact directories")
             
-            for artifact in artifacts:
-                with st.expander(f"{artifact['date']} - {artifact['count']} files"):
-                    st.write(f"Path: {artifact['path']}")
-                    if artifact['images']:
-                        st.write("Images:")
-                        for image in artifact['images']:
-                            filename = os.path.basename(image)
-                            filesize = os.path.getsize(image) / (1024*1024)  # Convert to MB
-                            st.code(f"{filename} ({filesize:.2f} MB)")
+            # Add a search box
+            search_term = st.text_input("🔍 Filter artifacts by name", "")
+            
+            # Display artifacts in a more visually appealing way
+            for i, artifact in enumerate(artifacts):
+                # Filter based on search term
+                if search_term and not any(search_term.lower() in os.path.basename(img).lower() for img in artifact['images']):
+                    continue
+                
+                # Use a colorful header for each artifact
+                header_color = "#2E86C1" if i % 2 == 0 else "#5D6D7E"
+                with st.expander(f"📅 {artifact['date']} - {artifact['count']} files"):
+                    # Add a container to improve layout
+                    with st.container():
+                        # Improve the artifact path display
+                        st.markdown(f"""
+                        <div style="background-color:#f0f0f0; padding:10px; border-radius:5px; margin-bottom:10px;">
+                            <b>📁 Path:</b> <code>{artifact['path']}</code><br>
+                            <b>🕒 Date:</b> {artifact['date'].replace('_', ' ').replace('-', ':')}
+                        </div>
+                        """, unsafe_allow_html=True)
+                        
+                        if artifact['images']:
+                            st.markdown("### 📊 Available Images")
                             
-                            if st.button(f"Flash {filename}", key=filename):
-                                st.warning("Flash functionality not implemented in the web UI for safety reasons.")
+                            # Create columns for better layout of multiple images
+                            cols = st.columns(2)
+                            for idx, image in enumerate(artifact['images']):
+                                filename = os.path.basename(image)
+                                filesize = os.path.getsize(image) / (1024*1024)  # Convert to MB
+                                col_idx = idx % 2
+                                
+                                # Create a card-like display for each image
+                                with cols[col_idx]:
+                                    st.markdown(f"""
+                                    <div style="background-color:#eef2f5; padding:15px; border-radius:8px; margin-bottom:10px; border-left:4px solid {header_color};">
+                                        <h4 style="margin:0; color:{header_color};">📄 {filename}</h4>
+                                        <p style="margin:5px 0;"><b>Size:</b> {filesize:.2f} MB</p>
+                                    </div>
+                                    """, unsafe_allow_html=True)
+                                    
+                                    if st.button(f"⚡ Flash {filename}", key=filename):
+                                        st.warning("Flash functionality not implemented in the web UI for safety reasons.")
+                                    
+                                    # Add a download button
+                                    with open(image, "rb") as file:
+                                        st.download_button(
+                                            label=f"⬇️ Download {filename}",
+                                            data=file,
+                                            file_name=filename,
+                                            key=f"download_{filename}"
+                                        )
     
     elif page == "System Info":
         st.header("System Information")
@@ -201,6 +275,47 @@ def main():
         memory_usage = subprocess.check_output(["free", "-h"]).decode('utf-8')
         st.code(memory_usage)
 
-# Execute app
+# Try to execute app with error handling
 if __name__ == "__main__":
-    main()
+    try:
+        # Add command line argument parsing
+        import argparse
+        parser = argparse.ArgumentParser(description="Jetson Build Manager")
+        parser.add_argument("--disable-file-watching", action="store_true", 
+                            help="Disable file watching to reduce inotify watch usage")
+        args = parser.parse_args()
+        
+        # If disable-file-watching is set, configure Streamlit to minimize file watching
+        if args.disable_file_watching:
+            import os
+            os.environ["STREAMLIT_SERVER_FILE_WATCHER_TYPE"] = "none"
+            st.sidebar.warning("⚠️ File watching is disabled. You must manually refresh the page after making changes.")
+        
+        main()
+    except OSError as e:
+        if "inotify watch limit reached" in str(e):
+            st.error("""
+            ### Error: inotify watch limit reached
+            
+            The application crashed because your system ran out of inotify watches.
+            To fix this issue:
+            
+            1. Run the `increase_inotify_limit.sh` script:
+               ```
+               sudo sh ./increase_inotify_limit.sh
+               ```
+            
+            2. Or restart with reduced file watching:
+               ```
+               bash ./run_app.sh
+               ```
+            
+            3. Or start with file watching disabled:
+               ```
+               streamlit run app.py -- --disable-file-watching
+               ```
+            """)
+        else:
+            st.error(f"Application error: {str(e)}")
+    except Exception as e:
+        st.error(f"Unexpected error: {str(e)}")
