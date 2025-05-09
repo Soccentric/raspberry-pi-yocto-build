@@ -116,16 +116,33 @@ flash:
 copy-artifacts:
 	@$(MKDIR) $(ARTIFACTS_DIR)/images
 	@echo "Copying artifacts to $(ARTIFACTS_DIR)"
-	@if [ -d "build/tmp/deploy/images/$(KAS_MACHINE)" ]; then \
+	@if [ ! -d "build/tmp/deploy/images/$(KAS_MACHINE)" ]; then \
+		echo "ERROR: No build artifacts directory found at build/tmp/deploy/images/$(KAS_MACHINE)"; \
+		echo "  Have you run 'make build' first to build the images?"; \
+		exit 1; \
+	fi
+	@echo "Looking for images in build/tmp/deploy/images/$(KAS_MACHINE)..."
+	@if find build/tmp/deploy/images/$(KAS_MACHINE) -type f -name "*.wic" -o -name "*.sdimg" -o -name "*.rpi-sdimg" | grep -q .; then \
 		find build/tmp/deploy/images/$(KAS_MACHINE) -type f -name "*.wic" -o -name "*.sdimg" -o -name "*.rpi-sdimg" | \
-		xargs -I{} $(CP) {} $(ARTIFACTS_DIR)/images/ 2>/dev/null || \
-		echo "No image artifacts found to copy"; \
+		xargs -I{} $(CP) {} $(ARTIFACTS_DIR)/images/; \
+		echo "Image files copied successfully."; \
+	else \
+		echo "WARNING: No image artifacts (*.wic, *.sdimg, *.rpi-sdimg) found to copy"; \
+		echo "  Have you completed a build using 'make build' that produced image files?"; \
+		echo "  Current machine: $(KAS_MACHINE)"; \
+		echo "  Current image: $(KAS_IMAGE)"; \
 	fi
 	@if [ "$(SDK)" = "1" -o "$(ESDK)" = "1" ]; then \
 		$(MKDIR) $(ARTIFACTS_DIR)/sdk; \
-		find build/tmp/deploy/sdk -type f -name "*.sh" | \
-		xargs -I{} $(CP) {} $(ARTIFACTS_DIR)/sdk/ 2>/dev/null || \
-		echo "No SDK artifacts found to copy"; \
+		if [ ! -d "build/tmp/deploy/sdk" ]; then \
+			echo "WARNING: SDK directory not found at build/tmp/deploy/sdk"; \
+		elif find build/tmp/deploy/sdk -type f -name "*.sh" | grep -q .; then \
+			find build/tmp/deploy/sdk -type f -name "*.sh" | \
+			xargs -I{} $(CP) {} $(ARTIFACTS_DIR)/sdk/; \
+			echo "SDK files copied successfully."; \
+		else \
+			echo "WARNING: No SDK artifacts (*.sh) found to copy"; \
+		fi \
 	fi
 	@echo "Artifacts copied to $(ARTIFACTS_DIR)"
 	@echo "Creating latest symlink"
