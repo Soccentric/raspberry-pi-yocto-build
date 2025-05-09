@@ -3,7 +3,7 @@ header:
   includes:
     - kas/machines/raspberrypi4.yml
     - kas/distros/poky.yml
-    - kas/images/core-image-base.yml
+    - kas/images/core-image-full-cmdline.yml
     - kas/repos/common.yml
     - kas/conf/local.yml
     - kas/conf/bblayers.yml
