@@ -30,3 +30,8 @@ repos:
     url: https://github.com/meta-qt5/meta-qt5/
     path: layers/meta-qt5
     branch: master
+
+  meta-swupdate:
+    url: https://github.com/sbabic/meta-swupdate.git
+    path: layers/meta-swupdate
+    branch: master
