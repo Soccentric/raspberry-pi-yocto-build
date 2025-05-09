@@ -135,6 +135,71 @@ def get_artifacts():
     
     return artifacts
 
+# Function to flash an image to a device
+def flash_image(image_path, device=None):
+    st.info(f"Preparing to flash {os.path.basename(image_path)}...")
+    
+    if device is None:
+        # Get list of available devices
+        try:
+            output = subprocess.check_output(["lsblk", "-d", "-n", "-o", "NAME,SIZE,MODEL"]).decode('utf-8')
+            devices = []
+            for line in output.strip().split('\n'):
+                if line:
+                    parts = line.split()
+                    if len(parts) >= 2 and not parts[0].startswith('loop'):
+                        devices.append({
+                            'name': parts[0],
+                            'size': parts[1],
+                            'model': ' '.join(parts[2:]) if len(parts) > 2 else 'Unknown'
+                        })
+            
+            if not devices:
+                st.error("No suitable devices found for flashing")
+                return False
+                
+            # Let user select a device
+            device_options = [f"{d['name']} ({d['size']}) - {d['model']}" for d in devices]
+            selected = st.selectbox("Select target device:", device_options)
+            device = "/dev/" + selected.split()[0]
+        except Exception as e:
+            st.error(f"Error detecting devices: {str(e)}")
+            return False
+    
+    # Confirm before flashing
+    st.warning(f"⚠️ You are about to flash {os.path.basename(image_path)} to {device}. This will ERASE ALL DATA on the device!")
+    
+    col1, col2 = st.columns(2)
+    with col1:
+        confirm = st.checkbox("I understand and confirm this action")
+    with col2:
+        if confirm and st.button("Start Flashing", type="primary"):
+            # Use dd to flash the image
+            try:
+                with st.spinner(f"Flashing to {device}. Please wait..."):
+                    # Command will depend on the image type
+                    if image_path.endswith('.wic') or image_path.endswith('.img'):
+                        flash_cmd = ["sudo", "dd", f"if={image_path}", f"of={device}", "bs=4M", "status=progress", "conv=fsync"]
+                    elif image_path.endswith('.bz2'):
+                        flash_cmd = ["sudo", "bash", "-c", f"bunzip2 -c {image_path} | dd of={device} bs=4M status=progress conv=fsync"]
+                    else:
+                        flash_cmd = ["sudo", "bash", "-c", f"cat {image_path} | dd of={device} bs=4M status=progress conv=fsync"]
+                    
+                    result = subprocess.run(flash_cmd, capture_output=True, text=True)
+                    
+                    if result.returncode == 0:
+                        st.success(f"Successfully flashed {os.path.basename(image_path)} to {device}")
+                        # Try to sync to ensure data is written
+                        subprocess.run(["sudo", "sync"])
+                        return True
+                    else:
+                        st.error(f"Error during flashing: {result.stderr}")
+                        return False
+            except Exception as e:
+                st.error(f"Flash error: {str(e)}")
+                return False
+    return False
+
 # Main app
 def main():
     # Check inotify limit at startup
@@ -142,123 +207,160 @@ def main():
     
     st.title("🤖 Jetson Build Manager")
     
-    # Sidebar navigation
-    st.sidebar.title("Navigation")
-    page = st.sidebar.radio("Go to", ["Build Configuration", "Build & Execute", "Artifacts", "System Info"])
+    # Use a cleaner sidebar style
+    st.sidebar.markdown("""
+    <style>
+    .sidebar .sidebar-content {
+        background-color: #f8f9fa;
+    }
+    </style>
+    """, unsafe_allow_html=True)
     
-    # Add a warning about filesystem watching in sidebar
-    st.sidebar.info("If you experience crashes related to 'inotify watch limit reached', run the increase_inotify_limit.sh script.")
+    # Simplified sidebar navigation with clean styling
+    st.sidebar.title("Navigation")
+    page = st.sidebar.radio("", ["Build Configuration", "Build & Execute", "Artifacts", "System Info"], 
+                            format_func=lambda x: f"{x}")
+    
+    # Add a simplified warning about filesystem watching in sidebar
+    st.sidebar.info("Run increase_inotify_limit.sh if you experience crashes.")
     
     # Read current configuration
     config = read_env_config()
     
+    # Parse command-line arguments
+    import argparse
+    parser = argparse.ArgumentParser(description="Jetson Build Manager")
+    parser.add_argument("--disable-file-watching", action="store_true", 
+                        help="Disable file watching to reduce inotify watch usage")
+    parser.add_argument("--enable-flash", action="store_true",
+                        help="Enable flash functionality (use with caution)")
+    args = parser.parse_args()
+    
+    # Set global flash enabled flag
+    flash_enabled = args.enable_flash
+    
     if page == "Build Configuration":
         st.header("Build Configuration")
-        st.info("Configure essential build parameters. These will be saved to the .env file.")
+        st.text("Configure essential build parameters.")
         
-        # Simplified configuration with only distro, machine and image
-        config['KAS_MACHINE'] = st.text_input("Machine", config.get('KAS_MACHINE', 'raspberrypi4'))
-        config['KAS_DISTRO'] = st.text_input("Distribution", config.get('KAS_DISTRO', 'poky'))
-        config['KAS_IMAGE'] = st.text_input("Image", config.get('KAS_IMAGE', 'core-image-base'))
+        # Simplified configuration with only distro, machine and image in a cleaner layout
+        col1, col2 = st.columns([1, 2])
+        with col1:
+            st.text("Machine:")
+            st.text("Distribution:")
+            st.text("Image:")
+        with col2:
+            config['KAS_MACHINE'] = st.text_input("", config.get('KAS_MACHINE', 'raspberrypi4'), key="machine_input", label_visibility="collapsed")
+            config['KAS_DISTRO'] = st.text_input("", config.get('KAS_DISTRO', 'poky'), key="distro_input", label_visibility="collapsed")
+            config['KAS_IMAGE'] = st.text_input("", config.get('KAS_IMAGE', 'core-image-base'), key="image_input", label_visibility="collapsed")
         
-        if st.button("Save Configuration"):
+        # Use a cleaner button style
+        if st.button("Save", type="primary"):
             save_env_config(config)
     
     elif page == "Build & Execute":
         st.header("Build & Execute")
         
-        # Display current configuration
+        # Display current configuration in a simpler format
         st.subheader("Current Configuration")
-        st.code(f"KAS_FILE: {config.get('KAS_FILE')}\n"
-                f"KAS_MACHINE: {config.get('KAS_MACHINE')}\n"
-                f"KAS_DISTRO: {config.get('KAS_DISTRO')}\n"
-                f"KAS_IMAGE: {config.get('KAS_IMAGE')}")
         
-        # Build options
+        # Create a simple table-like display
+        col1, col2 = st.columns([1, 3])
+        with col1:
+            st.text("File:")
+            st.text("Machine:")
+            st.text("Distribution:")
+            st.text("Image:")
+        with col2:
+            st.text(config.get('KAS_FILE'))
+            st.text(config.get('KAS_MACHINE'))
+            st.text(config.get('KAS_DISTRO'))
+            st.text(config.get('KAS_IMAGE'))
+        
+        # Build options with simplified styling
         st.subheader("Build Options")
         build_options = st.radio(
-            "Select Build Type",
-            ["Standard Build", "Build with SDK", "Build with Extensible SDK"]
+            "",
+            ["Standard Build", "Build with SDK", "Build with Extensible SDK"],
+            label_visibility="collapsed"
         )
         
-        compress_artifacts = st.checkbox("Compress Artifacts", value=False)
+        compress_artifacts = st.checkbox("Compress Artifacts")
         
-        # Execute button
-        if st.button("Start Build", key="start_build"):
-            st.info(f"Starting build at {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
-            
-            cmd_args = []
-            if compress_artifacts:
-                cmd_args.extend(["COMPRESS=1"])
+        # Execute button with cleaner styling
+        col1, col2, col3 = st.columns([1, 1, 2])
+        with col1:
+            if st.button("Start Build", type="primary", key="start_build"):
+                st.info(f"Starting build at {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
                 
-            if build_options == "Standard Build":
-                run_make_command("build", cmd_args)
-            elif build_options == "Build with SDK":
-                run_make_command("sdk", cmd_args)
-            elif build_options == "Build with Extensible SDK":
-                run_make_command("esdk", cmd_args)
+                cmd_args = []
+                if compress_artifacts:
+                    cmd_args.extend(["COMPRESS=1"])
+                    
+                if build_options == "Standard Build":
+                    run_make_command("build", cmd_args)
+                elif build_options == "Build with SDK":
+                    run_make_command("sdk", cmd_args)
+                elif build_options == "Build with Extensible SDK":
+                    run_make_command("esdk", cmd_args)
     
     elif page == "Artifacts":
-        st.header("📦 Build Artifacts")
+        st.header("Build Artifacts")
+        
+        # Display flash functionality warning
+        if flash_enabled:
+            st.warning("⚠️ Flash functionality is enabled. Use with caution.")
+        else:
+            st.info("Flash functionality is disabled. Start with --enable-flash to enable it.")
         
         artifacts = get_artifacts()
         if not artifacts:
             st.info("No build artifacts found. Run a build to generate artifacts.")
         else:
-            st.success(f"Found {len(artifacts)} artifact directories")
+            # Simplified success message
+            st.text(f"Found {len(artifacts)} artifact directories")
             
-            # Add a search box
-            search_term = st.text_input("🔍 Filter artifacts by name", "")
+            # Simplified search box
+            search_term = st.text_input("Filter artifacts", "")
             
-            # Display artifacts in a more visually appealing way
+            # Display artifacts in a simpler, flatter layout
             for i, artifact in enumerate(artifacts):
                 # Filter based on search term
                 if search_term and not any(search_term.lower() in os.path.basename(img).lower() for img in artifact['images']):
                     continue
                 
-                # Use a colorful header for each artifact
-                header_color = "#2E86C1" if i % 2 == 0 else "#5D6D7E"
-                with st.expander(f"📅 {artifact['date']} - {artifact['count']} files"):
-                    # Add a container to improve layout
-                    with st.container():
-                        # Improve the artifact path display
-                        st.markdown(f"""
-                        <div style="background-color:#f0f0f0; padding:10px; border-radius:5px; margin-bottom:10px;">
-                            <b>📁 Path:</b> <code>{artifact['path']}</code><br>
-                            <b>🕒 Date:</b> {artifact['date'].replace('_', ' ').replace('-', ':')}
-                        </div>
-                        """, unsafe_allow_html=True)
+                # Simplified expander without emoji and with minimal styling
+                with st.expander(f"{artifact['date']} - {artifact['count']} files", key=f"artifact_{artifact['date']}"):
+                    # Add simple layout
+                    st.text(f"Path: {artifact['path']}")
+                    st.text(f"Date: {artifact['date'].replace('_', ' ').replace('-', ':')}")
+                    
+                    if artifact['images']:
+                        st.subheader("Available Images")
                         
-                        if artifact['images']:
-                            st.markdown("### 📊 Available Images")
+                        # Use a simpler table layout
+                        for image in artifact['images']:
+                            filename = os.path.basename(image)
+                            filesize = os.path.getsize(image) / (1024*1024)  # Convert to MB
                             
-                            # Create columns for better layout of multiple images
-                            cols = st.columns(2)
-                            for idx, image in enumerate(artifact['images']):
-                                filename = os.path.basename(image)
-                                filesize = os.path.getsize(image) / (1024*1024)  # Convert to MB
-                                col_idx = idx % 2
-                                
-                                # Create a card-like display for each image
-                                with cols[col_idx]:
-                                    st.markdown(f"""
-                                    <div style="background-color:#eef2f5; padding:15px; border-radius:8px; margin-bottom:10px; border-left:4px solid {header_color};">
-                                        <h4 style="margin:0; color:{header_color};">📄 {filename}</h4>
-                                        <p style="margin:5px 0;"><b>Size:</b> {filesize:.2f} MB</p>
-                                    </div>
-                                    """, unsafe_allow_html=True)
-                                    
-                                    if st.button(f"⚡ Flash {filename}", key=filename):
-                                        st.warning("Flash functionality not implemented in the web UI for safety reasons.")
-                                    
-                                    # Add a download button
-                                    with open(image, "rb") as file:
-                                        st.download_button(
-                                            label=f"⬇️ Download {filename}",
-                                            data=file,
-                                            file_name=filename,
-                                            key=f"download_{filename}"
-                                        )
+                            # Create a simple card
+                            st.text(f"{filename} ({filesize:.2f} MB)")
+                            col1, col2 = st.columns([1, 1])
+                            with col1:
+                                if flash_enabled:
+                                    if st.button("Flash", key=f"flash_{artifact['date']}_{filename}"):
+                                        flash_image(image)
+                                else:
+                                    st.button("Flash", key=f"flash_{artifact['date']}_{filename}", disabled=True)
+                            with col2:
+                                with open(image, "rb") as file:
+                                    st.download_button(
+                                        "Download",
+                                        data=file,
+                                        file_name=filename,
+                                        key=f"download_{artifact['date']}_{filename}"
+                                    )
+                            st.divider()
     
     elif page == "System Info":
         st.header("System Information")
@@ -266,14 +368,16 @@ def main():
         # Run the makefile info command
         run_make_command("info")
 
-        # Additional system info
-        st.subheader("Disk Usage")
-        disk_usage = subprocess.check_output(["df", "-h", "."]).decode('utf-8')
-        st.code(disk_usage)
-        
-        st.subheader("Memory Usage")
-        memory_usage = subprocess.check_output(["free", "-h"]).decode('utf-8')
-        st.code(memory_usage)
+        # Simple system info
+        col1, col2 = st.columns(2)
+        with col1:
+            st.subheader("Disk Usage")
+            disk_usage = subprocess.check_output(["df", "-h", "."]).decode('utf-8')
+            st.code(disk_usage)
+        with col2:
+            st.subheader("Memory Usage")
+            memory_usage = subprocess.check_output(["free", "-h"]).decode('utf-8')
+            st.code(memory_usage)
 
 # Try to execute app with error handling
 if __name__ == "__main__":
@@ -283,6 +387,8 @@ if __name__ == "__main__":
         parser = argparse.ArgumentParser(description="Jetson Build Manager")
         parser.add_argument("--disable-file-watching", action="store_true", 
                             help="Disable file watching to reduce inotify watch usage")
+        parser.add_argument("--enable-flash", action="store_true",
+                            help="Enable flash functionality (use with caution)")
         args = parser.parse_args()
         
         # If disable-file-watching is set, configure Streamlit to minimize file watching
