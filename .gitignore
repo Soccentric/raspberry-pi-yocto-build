@@ -4,3 +4,4 @@ layers/
 .vscode/
 sstate-cache/
 downloads/
+artifacts/

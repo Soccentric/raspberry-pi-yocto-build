@@ -21,7 +21,7 @@ CP := cp -v
 DATE := $(shell date +%Y-%m-%d_%H-%M-%S)
 ARTIFACTS_DIR := artifacts/$(DATE)
 
-.PHONY: all build menu shell clean help status list-images flash info sdk esdk copy-artifacts cleanall cleansstate cleandownloads cleanmachine
+.PHONY: all build menu shell clean help status list-images flash info sdk esdk copy-artifacts cleanall cleansstate cleandownloads cleanmachine clean-artifacts build-with-progress
 
 # Export variables so that included kas files can access them
 export KAS_MACHINE KAS_DISTRO KAS_IMAGE KAS_REPOS_FILE KAS_LOCAL_CONF_FILE KAS_BBLAYERS_FILE
@@ -107,10 +107,23 @@ flash:
 		echo "Error: IMAGE parameter required. Usage: make flash DEVICE=/dev/sdX IMAGE=path/to/image.wic"; \
 		exit 1; \
 	fi
+	@if [ ! -f "$(IMAGE)" ]; then \
+		echo "Error: Image file $(IMAGE) not found"; \
+		exit 1; \
+	fi
+	@if [ ! -b "$(DEVICE)" ]; then \
+		echo "Error: $(DEVICE) is not a valid block device"; \
+		exit 1; \
+	fi
 	@echo "WARNING: This will overwrite all data on $(DEVICE). Are you sure? (y/N)"
 	@read -r CONFIRM && [ "$$CONFIRM" = "y" ] || exit 1
-	sudo dd if=$(IMAGE) of=$(DEVICE) bs=4M status=progress && sync
+	@echo "Flashing image to $(DEVICE) at $$(date '+%Y-%m-%d %H:%M:%S')"
+	sudo dd if=$(IMAGE) of=$(DEVICE) bs=4M status=progress conv=fsync
 	@echo "Image flashed successfully to $(DEVICE)"
+	@if command -v cmp >/dev/null; then \
+		echo "Verifying image..."; \
+		sudo cmp --silent $(IMAGE) $(DEVICE) || echo "WARNING: Verification failed, image may not be flashed correctly"; \
+	fi
 
 # Copy built artifacts to dated artifacts directory
 copy-artifacts:
@@ -122,12 +135,17 @@ copy-artifacts:
 		exit 1; \
 	fi
 	@echo "Looking for images in build/tmp/deploy/images/$(KAS_MACHINE)..."
-	@if find build/tmp/deploy/images/$(KAS_MACHINE) -type f -name "*.wic" -o -name "*.sdimg" -o -name "*.rpi-sdimg" | grep -q .; then \
-		find build/tmp/deploy/images/$(KAS_MACHINE) -type f -name "*.wic" -o -name "*.sdimg" -o -name "*.rpi-sdimg" | \
+	@if find build/tmp/deploy/images/$(KAS_MACHINE) -type f -name "*.wic" -o -name "*.sdimg" -o -name "*.rpi-sdimg" -o -name "*.img" -o -name "*.rootfs.tar.bz2" | grep -q .; then \
+		find build/tmp/deploy/images/$(KAS_MACHINE) -type f -name "*.wic" -o -name "*.sdimg" -o -name "*.rpi-sdimg" -o -name "*.img" -o -name "*.rootfs.tar.bz2" | \
 		xargs -I{} $(CP) {} $(ARTIFACTS_DIR)/images/; \
 		echo "Image files copied successfully."; \
+		if [ "$(COMPRESS)" = "1" ]; then \
+			echo "Compressing artifacts..."; \
+			find $(ARTIFACTS_DIR)/images -type f ! -name "*.gz" ! -name "*.bz2" ! -name "*.xz" | xargs -I{} gzip -9 "{}"; \
+			echo "Compression completed."; \
+		fi \
 	else \
-		echo "WARNING: No image artifacts (*.wic, *.sdimg, *.rpi-sdimg) found to copy"; \
+		echo "WARNING: No image artifacts (*.wic, *.sdimg, *.rpi-sdimg, *.img, *.rootfs.tar.bz2) found to copy"; \
 		echo "  Have you completed a build using 'make build' that produced image files?"; \
 		echo "  Current machine: $(KAS_MACHINE)"; \
 		echo "  Current image: $(KAS_IMAGE)"; \
@@ -144,26 +162,70 @@ copy-artifacts:
 			echo "WARNING: No SDK artifacts (*.sh) found to copy"; \
 		fi \
 	fi
-	@echo "Artifacts copied to $(ARTIFACTS_DIR)"
+	@echo "Artifacts copied to $(ARTIFACTS_DIR) at $$(date '+%Y-%m-%d %H:%M:%S')"
 	@echo "Creating latest symlink"
 	@rm -f artifacts/latest
 	@ln -sf $(DATE) artifacts/latest
+	@[ -f "$(ARTIFACTS_DIR)/build.log" ] || echo "Build completed at $$(date '+%Y-%m-%d %H:%M:%S')" > "$(ARTIFACTS_DIR)/build.log"
 
-# Show build info
+# Clean up old artifacts (keeps the latest N directories)
+clean-artifacts:
+	@echo "Cleaning old artifacts..."
+	@if [ -z "$(KEEP)" ]; then \
+		echo "Please specify how many artifact directories to keep with KEEP=N"; \
+		echo "Example: make clean-artifacts KEEP=5"; \
+		exit 1; \
+	fi
+	@if [ ! -d "artifacts" ]; then \
+		echo "No artifacts directory found."; \
+		exit 0; \
+	fi
+	@if [ $$(find artifacts -maxdepth 1 -type d | wc -l) -le $$(( $(KEEP) + 1 )) ]; then \
+		echo "There are fewer than $(KEEP) artifact directories. Nothing to clean."; \
+		exit 0; \
+	fi
+	@ls -td artifacts/20* | tail -n +$$(( $(KEEP) + 1 )) | xargs rm -rf
+	@echo "Kept the $(KEEP) most recent artifact directories."
+
+# Show build info with more details
 info:
 	@echo "Build environment information:"
 	@echo "  KAS version: $$(kas --version)"
 	@echo "  Docker installed: $$(command -v docker >/dev/null && echo 'Yes' || echo 'No')"
 	@echo "  Available disk space: $$(df -h . | awk 'NR==2 {print $$4}')"
 	@echo "  Memory: $$(free -h | awk '/^Mem:/ {print $$2}')"
+	@echo "  CPU cores: $$(nproc)"
+	@echo "  Kernel: $$(uname -r)"
+	@echo "  Build host: $$(hostname)"
 	@echo ""
 	@echo "Configuration:"
 	@echo "  KAS_FILE: $(KAS_FILE)"
 	@echo "  KAS_MACHINE: $(KAS_MACHINE)"
 	@echo "  KAS_DISTRO: $(KAS_DISTRO)"
 	@echo "  KAS_IMAGE: $(KAS_IMAGE)"
+	@echo ""
+	@echo "Artifacts:"
+	@if [ -d "artifacts" ]; then \
+		echo "  Latest build: $$(readlink -f artifacts/latest 2>/dev/null || echo 'None')"; \
+		echo "  Total artifact directories: $$(find artifacts -maxdepth 1 -type d | wc -l)"; \
+		echo "  Disk space used by artifacts: $$(du -sh artifacts | cut -f1)"; \
+	else \
+		echo "  No artifacts directory found."; \
+	fi
 
-# Display help
+# Show progress of long-running operations
+build-with-progress:
+	@$(MKDIR) artifacts
+	@$(MAKE) build 2>&1 | tee artifacts/build-$(DATE).log & \
+	PID=$$!; \
+	echo "Build started with PID: $$PID"; \
+	while kill -0 $$PID 2>/dev/null; do \
+		echo "Build in progress... $$(date '+%Y-%m-%d %H:%M:%S')"; \
+		sleep 60; \
+	done; \
+	wait $$PID
+
+# Display help with added commands
 help:
 	@echo "Makefile for Yocto/KAS Embedded Linux Builder"
 	@echo ""
@@ -172,9 +234,11 @@ help:
 	@echo "Targets:"
 	@echo "  all            Default target, displays this help message."
 	@echo "  build          Build the image defined in the KAS_FILE and copy to artifacts."
+	@echo "  build-with-progress Build with progress display every minute."
 	@echo "  sdk            Build the SDK for the specified image and copy to artifacts."
 	@echo "  esdk           Build the extensible SDK (eSDK) for the specified image and copy to artifacts."
-	@echo "  copy-artifacts Copy built images/SDKs to date-stamped artifacts directory."
+	@echo "  copy-artifacts Copy built images/SDKs to date-stamped artifacts directory (use COMPRESS=1 to compress)."
+	@echo "  clean-artifacts Clean old artifact directories (specify KEEP=N to keep N most recent directories)."
 	@echo "  menu           Launch the BitBake ncurses (terminal) UI for interactive build."
 	@echo "  shell          Enter the KAS shell environment for the configuration in KAS_FILE."
 	@echo "  clean          Clean build output for the specified image using BitBake."
