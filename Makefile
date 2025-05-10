@@ -135,8 +135,8 @@ copy-artifacts:
 		exit 1; \
 	fi
 	@echo "Looking for images in build/tmp/deploy/images/$(KAS_MACHINE)..."
-	@if find build/tmp/deploy/images/$(KAS_MACHINE) -type f -name "*.wic" -o -name "*.sdimg" -o -name "*.rpi-sdimg" -o -name "*.img" -o -name "*.rootfs.tar.bz2" | grep -q .; then \
-		find build/tmp/deploy/images/$(KAS_MACHINE) -type f -name "*.wic" -o -name "*.sdimg" -o -name "*.rpi-sdimg" -o -name "*.img" -o -name "*.rootfs.tar.bz2" | \
+	@if find build/tmp/deploy/images/$(KAS_MACHINE) -type f \( -name "*.wic" -o -name "*.wic.gz" -o -name "*.wic.bz2" -o -name "*.sdimg" -o -name "*.rpi-sdimg" -o -name "*.img" -o -name "*.rootfs.tar.bz2" \) | grep -q .; then \
+		find build/tmp/deploy/images/$(KAS_MACHINE) -type f \( -name "*.wic" -o -name "*.wic.gz" -o -name "*.wic.bz2" -o -name "*.sdimg" -o -name "*.rpi-sdimg" -o -name "*.img" -o -name "*.rootfs.tar.bz2" \) | \
 		xargs -I{} $(CP) {} $(ARTIFACTS_DIR)/images/; \
 		echo "Image files copied successfully."; \
 		if [ "$(COMPRESS)" = "1" ]; then \
@@ -145,22 +145,36 @@ copy-artifacts:
 			echo "Compression completed."; \
 		fi \
 	else \
-		echo "WARNING: No image artifacts (*.wic, *.sdimg, *.rpi-sdimg, *.img, *.rootfs.tar.bz2) found to copy"; \
+		echo "WARNING: No image artifacts (*.wic, *.wic.gz, *.wic.bz2, *.sdimg, *.rpi-sdimg, *.img, *.rootfs.tar.bz2) found to copy"; \
 		echo "  Have you completed a build using 'make build' that produced image files?"; \
 		echo "  Current machine: $(KAS_MACHINE)"; \
 		echo "  Current image: $(KAS_IMAGE)"; \
 	fi
 	@if [ "$(SDK)" = "1" -o "$(ESDK)" = "1" ]; then \
 		$(MKDIR) $(ARTIFACTS_DIR)/sdk; \
+		echo "Looking for SDK files..."; \
 		if [ ! -d "build/tmp/deploy/sdk" ]; then \
 			echo "WARNING: SDK directory not found at build/tmp/deploy/sdk"; \
-		elif find build/tmp/deploy/sdk -type f -name "*.sh" | grep -q .; then \
-			find build/tmp/deploy/sdk -type f -name "*.sh" | \
-			xargs -I{} $(CP) {} $(ARTIFACTS_DIR)/sdk/; \
-			echo "SDK files copied successfully."; \
 		else \
-			echo "WARNING: No SDK artifacts (*.sh) found to copy"; \
-		fi \
+			echo "Copying SDK installer scripts..."; \
+			if find build/tmp/deploy/sdk -type f -name "*.sh" | grep -q .; then \
+				find build/tmp/deploy/sdk -type f -name "*.sh" | \
+				xargs -I{} $(CP) {} $(ARTIFACTS_DIR)/sdk/; \
+				echo "SDK installer scripts copied successfully."; \
+			else \
+				echo "WARNING: No SDK installer scripts (*.sh) found"; \
+			fi; \
+			echo "Copying SDK tarballs..."; \
+			if find build/tmp/deploy/sdk -type f \( -name "*.tar.bz2" -o -name "*.tar.gz" -o -name "*.tar.xz" \) | grep -q .; then \
+				find build/tmp/deploy/sdk -type f \( -name "*.tar.bz2" -o -name "*.tar.gz" -o -name "*.tar.xz" \) | \
+				xargs -I{} $(CP) {} $(ARTIFACTS_DIR)/sdk/; \
+				echo "SDK tarballs copied successfully."; \
+			else \
+				echo "INFO: No SDK tarballs found (this is normal for standard SDK builds)"; \
+			fi; \
+			echo "SDK files copied to $(ARTIFACTS_DIR)/sdk"; \
+			ls -lh $(ARTIFACTS_DIR)/sdk; \
+		fi; \
 	fi
 	@echo "Artifacts copied to $(ARTIFACTS_DIR) at $$(date '+%Y-%m-%d %H:%M:%S')"
 	@echo "Creating latest symlink"
