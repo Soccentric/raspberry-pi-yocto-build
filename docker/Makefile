@@ -2,7 +2,7 @@
 # Coordinates builds and operations across all subprojects: edk, image, and sdk
 
 # Define directories
-DIRS := edk image sdk
+DIRS := edk image sdk jenkins
 
 .PHONY: all build up down ps logs shell clean jupyter help $(DIRS)
 
