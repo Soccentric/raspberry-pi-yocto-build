@@ -21,7 +21,7 @@ CP := cp -v
 DATE := $(shell date +%Y-%m-%d_%H-%M-%S)
 ARTIFACTS_DIR := artifacts/$(DATE)
 
-.PHONY: all build menu shell clean help status list-images flash info sdk esdk copy-artifacts cleanall cleansstate cleandownloads cleanmachine clean-artifacts build-with-progress
+.PHONY: all build menu shell clean help status list-images flash info sdk esdk copy-artifacts cleanall cleansstate cleandownloads cleanmachine clean-artifacts build-with-progress prepare-uninative
 
 # Export variables so that included kas files can access them
 export KAS_MACHINE KAS_DISTRO KAS_IMAGE KAS_REPOS_FILE KAS_LOCAL_CONF_FILE KAS_BBLAYERS_FILE
@@ -40,9 +40,23 @@ sdk:
 	@$(MAKE) copy-artifacts SDK=1
 
 # Build the extensible SDK for the specified image
-esdk:
-	$(KAS_CMD) shell $(KAS_FILE) -c "bitbake -c populate_sdk_ext $(KAS_IMAGE)"
+esdk: prepare-uninative
+	$(KAS_CMD) shell $(KAS_FILE) -c "bitbake -c populate_sdk_ext $(KAS_IMAGE)" || { \
+		echo "ERROR: eSDK build failed. This might be due to missing uninative files."; \
+		echo "Try running 'make build' first to ensure all dependencies are available."; \
+		echo "If the issue persists, check that the UNINATIVE_DLDIR is correctly set in your configuration."; \
+		exit 1; \
+	}
 	@$(MAKE) copy-artifacts ESDK=1
+
+# Prepare the uninative directory structure to avoid common eSDK build errors
+prepare-uninative:
+	@echo "Preparing environment for eSDK build..."
+	@$(KAS_CMD) shell $(KAS_FILE) -c "mkdir -p \$${UNINATIVE_DLDIR:-\$${DL_DIR}/uninative}" || true
+	@$(KAS_CMD) shell $(KAS_FILE) -c "if [ ! -d \$${UNINATIVE_DLDIR:-\$${DL_DIR}/uninative} ]; then \
+		echo 'WARNING: Unable to create uninative directory. The eSDK build might fail.'; \
+		echo 'Consider running a standard build first: make build'; \
+	fi"
 
 # Launch the bitbake terminal UI for the configuration in KAS_FILE
 menu:
