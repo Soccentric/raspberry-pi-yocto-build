@@ -53,7 +53,7 @@ RUN apt-get update && apt-get install -y \
 RUN apt-get update && apt-get install -y kas 
 
 # Set up working directory
-WORKDIR /workspace
+WORKDIR /work
 
 # Set environment variables
 ENV PYTHONPATH=/workspace:$PYTHONPATH
@@ -64,7 +64,7 @@ RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone
 
 # Create a non-root user
 RUN useradd -m pi && \
-    chown -R pi:pi /workspace
+    chown -R pi:pi /work
 
 # Default command
 CMD ["/bin/bash"]
