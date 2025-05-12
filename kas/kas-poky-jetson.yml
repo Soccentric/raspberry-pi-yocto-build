@@ -1,9 +1,9 @@
 header:
   version: 8
   includes:
-    - kas/machines/raspberrypi.yml
-    - kas/distros/poky.yml
-    - kas/images/core-image-full-cmdline.yml
-    - kas/repos/common.yml
-    - kas/conf/local.yml
-    - kas/conf/bblayers.yml
+    - machines/raspberrypi.yml
+    - distros/poky.yml
+    - images/core-image-full-cmdline.yml
+    - repos/common.yml
+    - conf/local.yml
+    - conf/bblayers.yml
