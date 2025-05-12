@@ -1,6 +1,6 @@
 # Makefile for Docker and Docker Compose commands
 
-.PHONY: build up down ps logs shell clean jupyter
+.PHONY: build up down ps logs shell clean
 
 # Build the Docker image
 build:
@@ -29,10 +29,6 @@ shell:
 # Clean up Docker resources
 clean:
 	docker-compose down --rmi all --volumes --remove-orphans
-
-# Start Jupyter Notebook server
-jupyter:
-	docker-compose exec rpi jupyter notebook --ip=0.0.0.0 --port=8888 --no-browser --allow-root
 
 # Help command
 help:

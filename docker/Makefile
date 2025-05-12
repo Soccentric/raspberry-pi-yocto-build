@@ -4,7 +4,7 @@
 # Define directories
 DIRS := edk image sdk jenkins
 
-.PHONY: all build up down ps logs shell clean jupyter help $(DIRS)
+.PHONY: all build up down ps logs shell clean help $(DIRS)
 
 # Default target: build all components
 all: build
@@ -80,12 +80,6 @@ shell-%:
 	echo "Opening shell in $$component"; \
 	$(MAKE) -C $$component shell
 
-# Start Jupyter in specific component (usage: make jupyter-edk, make jupyter-image, make jupyter-sdk)
-jupyter-%:
-	@component=$$(echo $@ | sed 's/jupyter-//'); \
-	echo "Starting Jupyter in $$component"; \
-	$(MAKE) -C $$component jupyter
-
 # Help command
 help:
 	@echo "Master Makefile for Jetson Docker project"
@@ -104,6 +98,5 @@ help:
 	@echo "  make image             - Build only the image component"
 	@echo "  make sdk               - Build only the sdk component"
 	@echo "  make shell-<component> - Open shell in specific component (e.g., make shell-edk)"
-	@echo "  make jupyter-<component> - Start Jupyter in specific component (e.g., make jupyter-edk)"
 	@echo ""
 	@echo "For more specific commands, cd into component directory and run make help"
