@@ -4,9 +4,10 @@ repos:
   meta-openembedded:
     url: http://git.openembedded.org/meta-openembedded
     path: layers/meta-openembedded
-    branch: master
+    branch: kirkstone
     layers:
       meta-oe:
       meta-python:
+      meta-multimedia:
       meta-networking:
-      meta-perl:
+      meta-filesystems:

@@ -1,0 +1,7 @@
+header:
+  version: 8
+repos:
+  meta-tegra:
+    url: "https://github.com/OE4T/meta-tegra.git"
+    path: layers/meta-tegra
+    branch: kirkstone
