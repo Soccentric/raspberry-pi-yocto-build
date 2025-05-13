@@ -6,7 +6,7 @@ SHELL := /bin/bash
 
 # Configuration variables with defaults if not in .env
 KAS_FILE ?= kas/kas-poky-jetson.yml
-KAS_MACHINE ?= raspberrypi4
+KAS_MACHINE ?= jetson-agx-orin-devkit-industrial
 KAS_DISTRO ?= poky
 KAS_IMAGE ?= core-image-base
 KAS_REPOS_FILE ?= common.yml

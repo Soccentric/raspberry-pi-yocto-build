@@ -1,0 +1,7 @@
+header:
+  version: 8
+repos:
+  meta-virtualization:
+    url: "git://git.yoctoproject.org/meta-virtualization"
+    path: layers/meta-virtualization
+    branch: kirkstone
