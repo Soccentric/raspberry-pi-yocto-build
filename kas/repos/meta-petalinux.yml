@@ -1,0 +1,7 @@
+header:
+  version: 8
+repos:
+  meta-petalinux:
+    url: https://github.com/Xilinx/meta-petalinux
+    branch: rel-v2024.2
+    path: sources/meta-petalinux

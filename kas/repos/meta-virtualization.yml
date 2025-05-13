@@ -1,0 +1,7 @@
+header:
+  version: 8
+repos:
+  meta-virtualization:
+    url: https://github.com/Xilinx/meta-virtualization
+    branch: rel-v2024.2
+    path: sources/meta-virtualization

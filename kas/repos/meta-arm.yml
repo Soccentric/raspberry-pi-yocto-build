@@ -1,0 +1,7 @@
+header:
+  version: 8
+repos:
+  meta-arm:
+    url: https://github.com/Xilinx/meta-arm
+    branch: rel-v2024.2
+    path: sources/meta-arm

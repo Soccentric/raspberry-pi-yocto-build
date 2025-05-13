@@ -1,0 +1,8 @@
+header:
+  version: 8
+
+repos:
+  meta-kria:
+    url: https://github.com/Xilinx/meta-kria
+    refspec: rel-v2024.2
+    path: sources/meta-kria

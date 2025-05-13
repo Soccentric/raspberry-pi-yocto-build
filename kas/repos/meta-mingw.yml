@@ -1,0 +1,8 @@
+header:
+  version: 8
+
+repos:
+  meta-mingw:
+    url: https://github.com/Xilinx/meta-mingw
+    branch: rel-v2024.2
+    path: sources/meta-mingw

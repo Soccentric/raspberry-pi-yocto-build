@@ -1,8 +1,14 @@
 header:
   version: 8
   includes:
-    - meta-raspberry.yml
     - poky.yml
     - meta-openembedded.yml
-    - meta-qt5.yml
-    - meta-swupdate.yml
+    - meta-xilinx.yml
+    - meta-xilinx-tools.yml
+    - meta-arm.yml
+    - meta-petalinux.yml
+    - meta-xilinx-tsn.yml
+    - meta-kria.yml
+    - meta-embedded-plus.yml
+    - meta-mingw.yml
+    - meta-virtualization.yml

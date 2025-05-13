@@ -1,9 +1,9 @@
 header:
   version: 8
   includes:
-    - machines/raspberrypi.yml
-    - distros/poky.yml
-    - images/core-image-full-cmdline.yml
     - repos/common.yml
+    - machines/clara-agx-xavier-devkit.yml
+    - repos/common.yml
+    - images/core-image-full-cmdline.yml
     - conf/local.yml
     - conf/bblayers.yml

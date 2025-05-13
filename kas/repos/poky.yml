@@ -2,8 +2,9 @@ header:
   version: 8
 repos:
   poky:
-    url: https://git.yoctoproject.org/git/poky
-    path: layers/poky
+    url: https://github.com/Xilinx/poky
+    branch: rel-v2024.2
+    path: sources/poky
     branch: master
     layers:
       meta:

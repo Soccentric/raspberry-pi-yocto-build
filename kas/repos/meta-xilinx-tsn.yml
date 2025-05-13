@@ -1,0 +1,8 @@
+header:
+  version: 8
+
+repos:
+  meta-xilinx-tsn:
+    url: https://github.com/Xilinx/meta-xilinx-tsn
+    branch: rel-v2024.2
+    path: sources/meta-xilinx-tsn
