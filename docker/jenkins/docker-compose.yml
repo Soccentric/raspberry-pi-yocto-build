@@ -11,7 +11,7 @@ services:
     environment:
       - TZ=UTC
     ports:
-      - "8884:8884" # For Jupyter notebooks
+      - "8884:8884" # 
     devices:
       - "/dev/gpiomem:/dev/gpiomem" # For GPIO access
       - "/dev/i2c-1:/dev/i2c-1" # For I2C devices

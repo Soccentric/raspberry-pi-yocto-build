@@ -66,5 +66,7 @@ RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone
 RUN useradd -m pi && \
     chown -R pi:pi /work
 
+USER pi
+
 # Default command
 CMD ["/bin/bash"]
