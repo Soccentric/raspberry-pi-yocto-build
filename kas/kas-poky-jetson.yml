@@ -1,7 +1,7 @@
 header:
   version: 8
   includes:
-    - machines/jetson-agx-orin-devkit-industrial.yml
+    - machines/p3768-0000-p3767-0004.yml
     - distros/poky.yml
     - images/core-image-full-cmdline.yml
     - repos/common.yml
