@@ -8,13 +8,13 @@ services:
       args:
         JETSON_UID: 1001
         JETSON_GID: 1001
-    container_name: jetson-sdk-container
+    container_name: jetson-esdk-container
     volumes:
       - ./:/workspace
     environment:
       - TZ=UTC
     ports:
-      - "8883:8883" # For Jupyter notebooks
+      - "8885:8885" # For Jupyter notebooks
     devices:
       - "/dev/gpiomem:/dev/gpiomem" # For GPIO access
       - "/dev/i2c-1:/dev/i2c-1" # For I2C devices

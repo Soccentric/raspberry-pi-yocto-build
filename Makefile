@@ -74,7 +74,7 @@ sdk:
 		kas shell --command "bitbake $(if $(TARGET),$(TARGET),$(DEFAULT_TARGET)) -c populate_sdk" $(KAS_FILE)
 	@echo "SDK build completed. Run 'make copy-sdk' to copy files to /work/docker/sdk"
 
-copy-sdk:
+copy-sdk: sdk 
 	@echo "Copying SDK to docker/sdk directory"
 	@mkdir -p docker/sdk
 	@if [ -n "$$(find $(CURDIR)/build/tmp/deploy/sdk -name '*.sh' 2>/dev/null)" ]; then \
@@ -96,7 +96,7 @@ esdk:
 		kas shell --command "bitbake $(if $(TARGET),$(TARGET),$(DEFAULT_TARGET)) -c populate_sdk_ext" $(KAS_FILE)
 	@echo "eSDK build completed. Run 'make copy-esdk' to copy files to /work/docker/esdk"
 
-copy-esdk:
+copy-esdk: esdk
 	@echo "Copying extensible SDK to docker/esdk directory"
 	@mkdir -p docker/esdk
 	@if [ -n "$$(find $(CURDIR)/build/tmp/deploy/sdk -name '*-toolchain-ext-*.sh' 2>/dev/null)" ]; then \
