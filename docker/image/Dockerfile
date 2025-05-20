@@ -1,7 +1,7 @@
-FROM ubuntu:24.04
+FROM ubuntu:20.04
 
 # Install essential packages for Raspberry Pi development
-RUN apt-get update && apt-get install -y \
+RUN DEBIAN_FRONTEND=noninteractive apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y \
     build-essential \
     cmake \
     git \
@@ -17,12 +17,10 @@ RUN apt-get update && apt-get install -y \
     curl \
     ssh \
     rsync \
-    python3-gpiozero \
-    python3-rpi.gpio \
     && apt-get clean 
 
 # Install Yocto Project dependencies
-RUN apt-get update && apt-get install -y \
+RUN DEBIAN_FRONTEND=noninteractive apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y \
     gawk \
     wget \
     git-core \
@@ -50,7 +48,7 @@ RUN apt-get update && apt-get install -y \
     locales \
     && apt-get clean
 
-RUN apt-get update && apt-get install -y kas 
+RUN pip3 install kas
 
 # Set up working directory
 WORKDIR /work
@@ -63,8 +61,8 @@ ENV TZ=UTC
 RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone
 
 # Create a non-root user
-RUN useradd -m pi && \
-    chown -R pi:pi /work
+RUN useradd -m jetson && \
+    chown -R jetson:jetson /work
 
 # Default command
 CMD ["/bin/bash"]
