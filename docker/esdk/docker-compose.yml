@@ -1,0 +1,27 @@
+version: "3.8"
+
+services:
+  jetson:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        JETSON_UID: 1001
+        JETSON_GID: 1001
+    container_name: jetson-sdk-container
+    volumes:
+      - ./:/workspace
+    environment:
+      - TZ=UTC
+    ports:
+      - "8883:8883" # For Jupyter notebooks
+    devices:
+      - "/dev/gpiomem:/dev/gpiomem" # For GPIO access
+      - "/dev/i2c-1:/dev/i2c-1" # For I2C devices
+    privileged: true # Required for full GPIO access
+    restart: unless-stopped
+    command: /bin/bash
+
+networks:
+  default:
+    name: jetson-network

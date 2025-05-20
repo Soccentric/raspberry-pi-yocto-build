@@ -1,3 +1,3 @@
 header:
   version: 8
-machine: jetson-agx-xavier-industrial.yml
+machine: jetson-agx-xavier-industrial
