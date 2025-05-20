@@ -2,12 +2,12 @@
 # Coordinates builds and operations across all subprojects: edk, image, and sdk
 
 # Define directories
-DIRS := edk image sdk jenkins
+DIRS := esdk image sdk jenkins
 
 .PHONY: all build up down ps logs shell clean help $(DIRS)
 
 # Default target: build all components
-all: build
+all: help 
 
 # Build all Docker images
 build:
@@ -62,9 +62,9 @@ clean:
 	@echo "=== All Docker resources cleaned ==="
 
 # Individual component targets
-edk:
-	@echo "=== Building edk component ==="
-	$(MAKE) -C edk build
+esdk:
+	@echo "=== Building esdk component ==="
+	$(MAKE) -C esdk build
 
 image:
 	@echo "=== Building image component ==="
@@ -74,7 +74,11 @@ sdk:
 	@echo "=== Building sdk component ==="
 	$(MAKE) -C sdk build
 
-# Shell access to specific component (usage: make shell-edk, make shell-image, make shell-sdk)
+jenkins:
+	@echo "=== Building jenkins component ==="
+	$(MAKE) -C jenkins build
+
+# Shell access to specific component (usage: make shell-esdk, make shell-image, make shell-sdk, make shell-jenkins)
 shell-%:
 	@component=$$(echo $@ | sed 's/shell-//'); \
 	echo "Opening shell in $$component"; \
@@ -94,9 +98,10 @@ help:
 	@echo "  make clean             - Clean up all Docker resources"
 	@echo ""
 	@echo "Individual component commands:"
-	@echo "  make edk               - Build only the edk component"
+	@echo "  make esdk              - Build only the esdk component"
 	@echo "  make image             - Build only the image component"
 	@echo "  make sdk               - Build only the sdk component"
-	@echo "  make shell-<component> - Open shell in specific component (e.g., make shell-edk)"
+	@echo "  make jenkins           - Build only the jenkins component"
+	@echo "  make shell-<component> - Open shell in specific component (e.g., make shell-esdk)"
 	@echo ""
 	@echo "For more specific commands, cd into component directory and run make help"

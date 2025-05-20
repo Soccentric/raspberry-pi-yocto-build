@@ -74,12 +74,19 @@ RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone
 ARG JETSON_UID=1000
 ARG JETSON_GID=1000
 
+COPY esdk.sh /tmp/esdk.sh
+RUN chmod +x /tmp/esdk.sh
+
 # Create group and user with specified UID/GID
 RUN groupadd -g $JETSON_GID jetson || true && \
     useradd -m -u $JETSON_UID -g $JETSON_GID jetson && \
     chown -R jetson:jetson /work
 
 USER jetson
+
+
+
+RUN /tmp/esdk.sh
 
 # Default command
 CMD ["/bin/bash"]
