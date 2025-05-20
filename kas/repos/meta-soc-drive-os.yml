@@ -1,0 +1,7 @@
+header:
+  version: 8
+repos:
+  meta-swupdate:
+    url: https://github.com/Soccentric/meta-soc-drive-os.git
+    path: layers/meta-soc-drive-os
+    branch: kirkstone

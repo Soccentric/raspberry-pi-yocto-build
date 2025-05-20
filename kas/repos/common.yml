@@ -9,3 +9,4 @@ header:
     - meta-tegra.yml
     - meta-virtualization.yml
     - poky.yml
+    - meta-soc-drive-os.yml
