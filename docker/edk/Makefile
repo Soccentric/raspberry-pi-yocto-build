@@ -22,9 +22,9 @@ ps:
 logs:
 	docker-compose logs
 
-# Open a shell in the rpi container
+# Open a shell in the jetson container
 shell:
-	docker-compose exec rpi bash
+	docker-compose exec jetson bash
 
 # Clean up Docker resources
 clean:
@@ -38,5 +38,5 @@ help:
 	@echo "  make down     - Stop containers"
 	@echo "  make ps       - List running containers"
 	@echo "  make logs     - Show container logs"
-	@echo "  make shell    - Open shell in rpi container"
+	@echo "  make shell    - Open shell in jetson container"
 	@echo "  make clean    - Clean up Docker resources"

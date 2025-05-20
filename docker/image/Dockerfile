@@ -48,7 +48,18 @@ RUN DEBIAN_FRONTEND=noninteractive apt-get update && DEBIAN_FRONTEND=noninteract
     locales \
     && apt-get clean
 
+# Generate and set locale
+RUN locale-gen en_US.UTF-8 && update-locale LANG=en_US.UTF-8
+
+ENV LANG=en_US.UTF-8
+ENV LANGUAGE=en_US:en
+ENV LC_ALL=en_US.UTF-8
+
 RUN pip3 install kas
+
+# Accept build arguments for UID and GID
+ARG JETSON_UID=1000
+ARG JETSON_GID=1000
 
 # Set up working directory
 WORKDIR /work
@@ -60,9 +71,12 @@ ENV PYTHONPATH=/workspace:$PYTHONPATH
 ENV TZ=UTC
 RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone
 
-# Create a non-root user
-RUN useradd -m jetson && \
+# Create group and user with specified UID/GID
+RUN groupadd -g $JETSON_GID jetson || true && \
+    useradd -m -u $JETSON_UID -g $JETSON_GID jetson && \
     chown -R jetson:jetson /work
+
+USER jetson
 
 # Default command
 CMD ["/bin/bash"]

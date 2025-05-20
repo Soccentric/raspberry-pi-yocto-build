@@ -1,24 +1,27 @@
 version: "3.8"
 
 services:
-  rpi:
+  jetson:
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: rpi-jenkins-container
+      args:
+        JETSON_UID: 1001
+        JETSON_GID: 1001
+    container_name: jetson-jenkins-container
     volumes:
       - ./:/workspace
     environment:
       - TZ=UTC
     ports:
-      - "8884:8884" # For Jupyter notebooks
+      - "8080:8888" # Jenkins web interface
     devices:
       - "/dev/gpiomem:/dev/gpiomem" # For GPIO access
       - "/dev/i2c-1:/dev/i2c-1" # For I2C devices
     privileged: true # Required for full GPIO access
     restart: unless-stopped
-    command: /bin/bash
+    command: ["/usr/bin/java", "-jar", "/usr/share/jenkins/jenkins.war"]
 
 networks:
   default:
-    name: rpi-network
+    name: jetson-network

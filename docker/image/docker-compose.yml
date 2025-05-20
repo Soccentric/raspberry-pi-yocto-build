@@ -1,11 +1,14 @@
 version: "3.8"
 
 services:
-  rpi:
+  jetson:
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: rpi-image-container
+      args:
+        JETSON_UID: 1001
+        JETSON_GID: 1001
+    container_name: jetson-image-container
     volumes:
       - ./:/workspace
     environment:
@@ -21,4 +24,4 @@ services:
 
 networks:
   default:
-    name: rpi-network
+    name: jetson-network

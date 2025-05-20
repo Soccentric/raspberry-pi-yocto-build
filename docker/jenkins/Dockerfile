@@ -1,5 +1,8 @@
 FROM ubuntu:20.04
 
+# Install apt-utils to avoid debconf warnings
+RUN DEBIAN_FRONTEND=noninteractive apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y apt-utils && apt-get clean
+
 # Install essential packages for Raspberry Pi development
 RUN DEBIAN_FRONTEND=noninteractive apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y \
     build-essential \
@@ -48,7 +51,18 @@ RUN DEBIAN_FRONTEND=noninteractive apt-get update && DEBIAN_FRONTEND=noninteract
     locales \
     && apt-get clean
 
+# Generate and set locale
+RUN locale-gen en_US.UTF-8 && update-locale LANG=en_US.UTF-8
+
+ENV LANG=en_US.UTF-8
+ENV LANGUAGE=en_US:en
+ENV LC_ALL=en_US.UTF-8
+
 RUN pip3 install kas
+
+# Accept build arguments for UID and GID
+ARG JETSON_UID=1000
+ARG JETSON_GID=1000
 
 # Set up working directory
 WORKDIR /work
@@ -60,9 +74,35 @@ ENV PYTHONPATH=/workspace:$PYTHONPATH
 ENV TZ=UTC
 RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone
 
-# Create a non-root user
-RUN useradd -m jetson && \
+# Create group and user with specified UID/GID
+RUN groupadd -g $JETSON_GID jetson || true && \
+    useradd -m -u $JETSON_UID -g $JETSON_GID jetson && \
     chown -R jetson:jetson /work
+
+USER jetson
+
+# Install Java (required for Jenkins)
+USER root
+RUN apt-get update && apt-get install -y openjdk-11-jdk && apt-get clean
+
+# Add Jenkins repository and install Jenkins (modern GPG key method)
+RUN curl -fsSL https://pkg.jenkins.io/debian-stable/jenkins.io-2023.key -o /usr/share/keyrings/jenkins-keyring.asc \
+    && echo "deb [signed-by=/usr/share/keyrings/jenkins-keyring.asc] https://pkg.jenkins.io/debian-stable binary/" > /etc/apt/sources.list.d/jenkins.list \
+    && apt-get update \
+    && apt-get install -y jenkins \
+    && apt-get clean
+
+# Expose Jenkins port
+EXPOSE 8080
+
+
+
+# Set Jenkins home and user
+ENV JENKINS_HOME=/var/lib/jenkins
+
+# Set entrypoint to Jenkins
+USER root
+CMD ["/usr/bin/java", "-jar", "/usr/share/jenkins/jenkins.war"]
 
 # Default command
 CMD ["/bin/bash"]
