@@ -14,9 +14,13 @@ KAS_LOCAL_CONF_FILE ?= local.yml
 KAS_BBLAYERS_FILE ?= bblayers.yml
 
 # Docker configuration
-DOCKER_IMAGE = image_rpi
+DOCKER_IMAGE_PRIMARY ?= image_rpi
+DOCKER_IMAGE_FALLBACK ?= image-rpi
 DOCKER_WORKDIR ?= /work
 DOCKER_USER ?= $(shell id -u):$(shell id -g)
+
+# Determine which Docker image to use
+DOCKER_IMAGE := $(shell if docker image inspect $(DOCKER_IMAGE_PRIMARY) >/dev/null 2>&1; then echo $(DOCKER_IMAGE_PRIMARY); elif docker image inspect $(DOCKER_IMAGE_FALLBACK) >/dev/null 2>&1; then echo $(DOCKER_IMAGE_FALLBACK); else echo $(DOCKER_IMAGE_PRIMARY); fi)
 
 # Commands
 KAS_CMD := docker run --rm -it \
@@ -40,47 +44,76 @@ export KAS_MACHINE KAS_DISTRO KAS_IMAGE KAS_REPOS_FILE KAS_LOCAL_CONF_FILE KAS_B
 # Default target is build, which uses Docker
 all: build
 
+# Check if Docker image exists
+check-docker-image:
+	@echo "Checking for Docker image '$(DOCKER_IMAGE)'..."
+	@if ! docker image inspect $(DOCKER_IMAGE) >/dev/null 2>&1; then \
+		echo "Docker image '$(DOCKER_IMAGE)' not found locally."; \
+		echo "Checking for fallback image '$(DOCKER_IMAGE_FALLBACK)'..."; \
+		if ! docker image inspect $(DOCKER_IMAGE_FALLBACK) >/dev/null 2>&1; then \
+			echo "Fallback image not found either. Attempting to pull $(DOCKER_IMAGE_PRIMARY)..."; \
+			if ! docker pull $(DOCKER_IMAGE_PRIMARY); then \
+				echo "Could not pull $(DOCKER_IMAGE_PRIMARY). Trying $(DOCKER_IMAGE_FALLBACK)..."; \
+				if ! docker pull $(DOCKER_IMAGE_FALLBACK); then \
+					echo "Error: Failed to pull either Docker image."; \
+					echo "Please create a valid Docker image for KAS."; \
+					exit 1; \
+				fi; \
+				echo "Using $(DOCKER_IMAGE_FALLBACK) as Docker image."; \
+				DOCKER_IMAGE=$(DOCKER_IMAGE_FALLBACK); \
+			else \
+				echo "Using $(DOCKER_IMAGE_PRIMARY) as Docker image."; \
+				DOCKER_IMAGE=$(DOCKER_IMAGE_PRIMARY); \
+			fi; \
+		else \
+			echo "Using $(DOCKER_IMAGE_FALLBACK) as Docker image."; \
+			DOCKER_IMAGE=$(DOCKER_IMAGE_FALLBACK); \
+		fi; \
+	else \
+		echo "Using $(DOCKER_IMAGE) as Docker image."; \
+	fi
+
 # Build the image defined in the KAS_FILE always using Docker
-build:
+build: check-docker-image
 	@echo "Starting Docker build using $(DOCKER_IMAGE)..."
 	$(KAS_CMD) build $(KAS_FILE)
 	@$(MAKE) copy-artifacts
 
 # Build the SDK for the specified image (using Docker)
-sdk:
+sdk: check-docker-image
 	$(KAS_CMD) shell $(KAS_FILE) -c "bitbake -c populate_sdk $(KAS_IMAGE)"
 	@$(MAKE) copy-artifacts SDK=1
 
 # Build the extensible SDK for the specified image
-esdk:
+esdk: check-docker-image
 	$(KAS_CMD) shell $(KAS_FILE) -c "bitbake -c populate_sdk_ext $(KAS_IMAGE)"
 	@$(MAKE) copy-artifacts ESDK=1
 
 # Launch the bitbake terminal UI for the configuration in KAS_FILE
-menu:
+menu: check-docker-image
 	$(KAS_CMD) shell $(KAS_FILE) -c "bitbake -u ncurses $(KAS_IMAGE)"
 
 # Enter the KAS shell environment for the configuration in KAS_FILE
-shell:
+shell: check-docker-image
 	$(KAS_CMD) shell $(KAS_FILE)
 
 # Clean the build output using bitbake
-clean:
+clean: check-docker-image
 	$(KAS_CMD) shell $(KAS_FILE) -c "bitbake -c clean $(KAS_IMAGE)"
 	@echo "Basic clean completed for $(KAS_IMAGE)"
 
 # Clean all build output including tmp directory
-cleanall:
+cleanall: check-docker-image
 	$(KAS_CMD) shell $(KAS_FILE) -c "rm -rf tmp"
 	@echo "Complete build directory cleaned"
 
 # Clean the shared state cache
-cleansstate:
+cleansstate: check-docker-image
 	$(KAS_CMD) shell $(KAS_FILE) -c "bitbake -c cleansstate $(KAS_IMAGE)"
 	@echo "Sstate cache cleaned for $(KAS_IMAGE)"
 
 # Clean the downloads directory
-cleandownloads:
+cleandownloads: check-docker-image
 	$(KAS_CMD) shell $(KAS_FILE) -c "rm -rf downloads"
 	@echo "Downloads directory cleaned"
 
