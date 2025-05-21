@@ -61,6 +61,9 @@ RUN pip3 install kas
 # Set up working directory
 WORKDIR /work
 
+# Copy SDK installer script
+COPY sdk.sh /tmp/sdk.sh
+
 # Set environment variables
 ENV PYTHONPATH=/workspace:$PYTHONPATH
 
@@ -76,6 +79,11 @@ RUN groupadd -g ${GROUP_ID} pi && \
     useradd -u ${USER_ID} -g ${GROUP_ID} -m pi && \
     chown -R pi:pi /work
 
+# Create SDK directory and set permissions
+RUN mkdir -p /opt/sdk && \
+    chmod +x /tmp/sdk.sh && \
+    chown -R pi:pi /opt/sdk /tmp/sdk.sh
+
 # Configure and generate locales
 RUN sed -i -e 's/# en_US.UTF-8 UTF-8/en_US.UTF-8 UTF-8/' /etc/locale.gen && \
     locale-gen
@@ -83,7 +91,12 @@ ENV LANG=en_US.UTF-8 \
     LANGUAGE=en_US:en \
     LC_ALL=en_US.UTF-8
 
+# Switch to pi user and install SDK
 USER pi
+RUN /tmp/sdk.sh -y -d /opt/sdk
+
+# Add the SDK environment sourcing to .bashrc
+RUN echo 'source /opt/sdk/environment-setup-cortexa76-poky-linux' >> /home/pi/.bashrc
 
 # Default command
 CMD ["/bin/bash"]

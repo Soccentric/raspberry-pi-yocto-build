@@ -54,10 +54,15 @@ RUN apt-get update && apt-get install -y \
     locales \
     && apt-get clean
 
+
+# Install kas using pip (Python package installer)
 RUN pip3 install kas
 
 # Set up working directory
 WORKDIR /work
+
+# Copy SDK installer script
+COPY esdk.sh /tmp/esdk.sh
 
 # Set environment variables
 ENV PYTHONPATH=/workspace:$PYTHONPATH
@@ -65,13 +70,6 @@ ENV PYTHONPATH=/workspace:$PYTHONPATH
 # Set timezone
 ENV TZ=UTC
 RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone
-
-# Configure and generate locales
-RUN sed -i -e 's/# en_US.UTF-8 UTF-8/en_US.UTF-8 UTF-8/' /etc/locale.gen && \
-    locale-gen
-ENV LANG=en_US.UTF-8 \
-    LANGUAGE=en_US:en \
-    LC_ALL=en_US.UTF-8
 
 # Create a non-root user with host user ID for permission sync
 ARG USER_ID=1000
@@ -81,7 +79,24 @@ RUN groupadd -g ${GROUP_ID} pi && \
     useradd -u ${USER_ID} -g ${GROUP_ID} -m pi && \
     chown -R pi:pi /work
 
+# Create SDK directory and set permissions
+RUN mkdir -p /opt/sdk && \
+    chmod +x /tmp/esdk.sh && \
+    chown -R pi:pi /opt/sdk /tmp/esdk.sh
+
+# Configure and generate locales
+RUN sed -i -e 's/# en_US.UTF-8 UTF-8/en_US.UTF-8 UTF-8/' /etc/locale.gen && \
+    locale-gen
+ENV LANG=en_US.UTF-8 \
+    LANGUAGE=en_US:en \
+    LC_ALL=en_US.UTF-8
+
+# Switch to pi user and install SDK
 USER pi
+RUN /tmp/esdk.sh -y -d /opt/sdk
+
+# Add the SDK environment sourcing to .bashrc
+RUN echo 'source /opt/sdk/environment-setup-cortexa76-poky-linux' >> /home/pi/.bashrc
 
 # Default command
 CMD ["/bin/bash"]
