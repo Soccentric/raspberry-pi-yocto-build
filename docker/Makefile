@@ -2,7 +2,7 @@
 # Coordinates builds and operations across all subprojects: edk, image, and sdk
 
 # Define directories
-DIRS := edk image sdk jenkins
+DIRS := esdk image sdk jenkins
 
 # Export host user and group IDs for permission synchronization
 export USER_ID ?= $(shell id -u)
