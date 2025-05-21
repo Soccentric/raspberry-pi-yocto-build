@@ -1,14 +1,18 @@
 # Makefile for Docker and Docker Compose commands
 
+# Use host user/group IDs for container permissions (inherited from parent Makefile or set here)
+USER_ID ?= $(shell id -u)
+GROUP_ID ?= $(shell id -g)
+
 .PHONY: build up down ps logs shell clean
 
 # Build the Docker image
 build:
-	docker-compose build
+	USER_ID=$(USER_ID) GROUP_ID=$(GROUP_ID) docker-compose build
 
 # Start containers
 up:
-	docker-compose up -d
+	USER_ID=$(USER_ID) GROUP_ID=$(GROUP_ID) docker-compose up -d
 
 # Stop containers
 down:

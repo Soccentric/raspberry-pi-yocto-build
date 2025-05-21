@@ -68,8 +68,12 @@ ENV PYTHONPATH=/workspace:$PYTHONPATH
 ENV TZ=UTC
 RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone
 
-# Create a non-root user
-RUN useradd -m pi && \
+# Create a non-root user with host user ID for permission sync
+ARG USER_ID=1000
+ARG GROUP_ID=1000
+
+RUN groupadd -g ${GROUP_ID} pi && \
+    useradd -u ${USER_ID} -g ${GROUP_ID} -m pi && \
     chown -R pi:pi /work
 
 # Configure and generate locales

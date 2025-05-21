@@ -4,6 +4,10 @@
 # Define directories
 DIRS := edk image sdk jenkins
 
+# Export host user and group IDs for permission synchronization
+export USER_ID ?= $(shell id -u)
+export GROUP_ID ?= $(shell id -g)
+
 .PHONY: all build up down ps logs shell clean help $(DIRS)
 
 # Default target: build all components
