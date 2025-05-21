@@ -14,7 +14,7 @@ local_conf_header:
     SSTATE_DIR = "${TOPDIR}/../sstate-cache"
   debug-tweaks: |
     IMAGE_FEATURES += "empty-root-password allow-empty-password allow-root-login post-install-logging"
-    IMAGE_INSTALL:append = " strace"
+    IMAGE_INSTALL:append = " strace "
   diskmon: |
     BB_DISKMON_DIRS = "\
         STOPTASKS,${TMPDIR},1G,100K \
