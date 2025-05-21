@@ -6,7 +6,7 @@ SHELL := /bin/bash
 
 # Configuration variables with defaults if not in .env
 KAS_FILE ?= kas/kas-poky-jetson.yml
-KAS_MACHINE ?= raspberrypi4
+KAS_MACHINE = raspberrypi5
 KAS_DISTRO ?= poky
 KAS_IMAGE ?= core-image-base
 KAS_REPOS_FILE ?= common.yml
@@ -42,7 +42,7 @@ ARTIFACTS_DIR := artifacts/$(DATE)
 export KAS_MACHINE KAS_DISTRO KAS_IMAGE KAS_REPOS_FILE KAS_LOCAL_CONF_FILE KAS_BBLAYERS_FILE
 
 # Default target is build, which uses Docker
-all: build
+all: build sdk esdk 
 
 # Check if Docker image exists
 check-docker-image:
@@ -172,60 +172,28 @@ flash:
 
 # Copy built artifacts to dated artifacts directory
 copy-artifacts:
-	@$(MKDIR) $(ARTIFACTS_DIR)/images
-	@echo "Copying artifacts to $(ARTIFACTS_DIR)"
-	@if [ ! -d "build/tmp/deploy/images/$(KAS_MACHINE)" ]; then \
-		echo "ERROR: No build artifacts directory found at build/tmp/deploy/images/$(KAS_MACHINE)"; \
-		echo "  Have you run 'make build' first to build the images?"; \
-		exit 1; \
+	@echo "Copying artifacts to $(ARTIFACTS_DIR)..."
+	@$(MKDIR) $(ARTIFACTS_DIR)
+	@if [ -d "build/tmp/deploy/images/$(KAS_MACHINE)" ]; then \
+		echo "Copying image files..."; \
+		$(MKDIR) $(ARTIFACTS_DIR)/images; \
+		$(CP) build/tmp/deploy/images/$(KAS_MACHINE)/*.wic $(ARTIFACTS_DIR)/images/ 2>/dev/null || true; \
+		$(CP) build/tmp/deploy/images/$(KAS_MACHINE)/*.rpi-sdimg $(ARTIFACTS_DIR)/images/ 2>/dev/null || true; \
+		$(CP) build/tmp/deploy/images/$(KAS_MACHINE)/*.sdimg $(ARTIFACTS_DIR)/images/ 2>/dev/null || true; \
 	fi
-	@echo "Looking for images in build/tmp/deploy/images/$(KAS_MACHINE)..."
-	@if find build/tmp/deploy/images/$(KAS_MACHINE) -type f \( -name "*.wic" -o -name "*.wic.gz" -o -name "*.wic.bz2" -o -name "*.sdimg" -o -name "*.rpi-sdimg" -o -name "*.img" -o -name "*.rootfs.tar.bz2" \) | grep -q .; then \
-		find build/tmp/deploy/images/$(KAS_MACHINE) -type f \( -name "*.wic" -o -name "*.wic.gz" -o -name "*.wic.bz2" -o -name "*.sdimg" -o -name "*.rpi-sdimg" -o -name "*.img" -o -name "*.rootfs.tar.bz2" \) | \
-		xargs -I{} $(CP) {} $(ARTIFACTS_DIR)/images/; \
-		echo "Image files copied successfully."; \
-		if [ "$(COMPRESS)" = "1" ]; then \
-			echo "Compressing artifacts..."; \
-			find $(ARTIFACTS_DIR)/images -type f ! -name "*.gz" ! -name "*.bz2" ! -name "*.xz" | xargs -I{} gzip -9 "{}"; \
-			echo "Compression completed."; \
-		fi \
-	else \
-		echo "WARNING: No image artifacts (*.wic, *.wic.gz, *.wic.bz2, *.sdimg, *.rpi-sdimg, *.img, *.rootfs.tar.bz2) found to copy"; \
-		echo "  Have you completed a build using 'make build' that produced image files?"; \
-		echo "  Current machine: $(KAS_MACHINE)"; \
-		echo "  Current image: $(KAS_IMAGE)"; \
-	fi
-	@if [ "$(SDK)" = "1" -o "$(ESDK)" = "1" ]; then \
+	@if [ "$(SDK)" = "1" ] && [ -d "build/tmp/deploy/sdk" ]; then \
+		echo "Copying SDK files..."; \
 		$(MKDIR) $(ARTIFACTS_DIR)/sdk; \
-		echo "Looking for SDK files..."; \
-		if [ ! -d "build/tmp/deploy/sdk" ]; then \
-			echo "WARNING: SDK directory not found at build/tmp/deploy/sdk"; \
-		else \
-			echo "Copying SDK installer scripts..."; \
-			if find build/tmp/deploy/sdk -type f -name "*.sh" | grep -q .; then \
-				find build/tmp/deploy/sdk -type f -name "*.sh" | \
-				xargs -I{} $(CP) {} $(ARTIFACTS_DIR)/sdk/; \
-				echo "SDK installer scripts copied successfully."; \
-			else \
-				echo "WARNING: No SDK installer scripts (*.sh) found"; \
-			fi; \
-			echo "Copying SDK tarballs..."; \
-			if find build/tmp/deploy/sdk -type f \( -name "*.tar.bz2" -o -name "*.tar.gz" -o -name "*.tar.xz" \) | grep -q .; then \
-				find build/tmp/deploy/sdk -type f \( -name "*.tar.bz2" -o -name "*.tar.gz" -o -name "*.tar.xz" \) | \
-				xargs -I{} $(CP) {} $(ARTIFACTS_DIR)/sdk/; \
-				echo "SDK tarballs copied successfully."; \
-			else \
-				echo "INFO: No SDK tarballs found (this is normal for standard SDK builds)"; \
-			fi; \
-			echo "SDK files copied to $(ARTIFACTS_DIR)/sdk"; \
-			ls -lh $(ARTIFACTS_DIR)/sdk; \
-		fi; \
+		$(CP) build/tmp/deploy/sdk/*.sh $(ARTIFACTS_DIR)/sdk/ 2>/dev/null || true; \
 	fi
-	@echo "Artifacts copied to $(ARTIFACTS_DIR) at $$(date '+%Y-%m-%d %H:%M:%S')"
-	@echo "Creating latest symlink"
+	@if [ "$(ESDK)" = "1" ] && [ -d "build/tmp/deploy/sdk" ]; then \
+		echo "Copying extensible SDK files..."; \
+		$(MKDIR) $(ARTIFACTS_DIR)/esdk; \
+		$(CP) build/tmp/deploy/sdk/*-toolchain-ext-*.sh $(ARTIFACTS_DIR)/esdk/ 2>/dev/null || true; \
+	fi
 	@rm -f artifacts/latest
 	@ln -sf $(DATE) artifacts/latest
-	@[ -f "$(ARTIFACTS_DIR)/build.log" ] || echo "Build completed at $$(date '+%Y-%m-%d %H-%M-%S')" > "$(ARTIFACTS_DIR)/build.log"
+	@echo "Artifacts copied to $(ARTIFACTS_DIR)"
 
 # Clean up old artifacts (keeps the latest N directories)
 clean-artifacts:
