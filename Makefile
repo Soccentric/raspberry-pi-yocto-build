@@ -14,7 +14,7 @@ KAS_LOCAL_CONF_FILE ?= local.yml
 KAS_BBLAYERS_FILE ?= bblayers.yml
 
 # Docker configuration
-DOCKER_IMAGE ?= image-rpi
+DOCKER_IMAGE = image_rpi
 DOCKER_WORKDIR ?= /work
 DOCKER_USER ?= $(shell id -u):$(shell id -g)
 
