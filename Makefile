@@ -42,7 +42,7 @@ ARTIFACTS_DIR := artifacts/$(DATE)
 export KAS_MACHINE KAS_DISTRO KAS_IMAGE KAS_REPOS_FILE KAS_LOCAL_CONF_FILE KAS_BBLAYERS_FILE
 
 # Default target is build, which uses Docker
-all: build sdk esdk 
+all: help 
 
 # Check if Docker image exists
 check-docker-image:
