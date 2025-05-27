@@ -1,0 +1,27 @@
+version: "3.8"
+
+services:
+  rpi:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        - USER_ID=${USER_ID:-1000}
+        - GROUP_ID=${GROUP_ID:-1000}
+    container_name: rpi-edk-container
+    volumes:
+      - ./:/workspace
+    environment:
+      - TZ=UTC
+    ports:
+      - "8881:8881" # For Jupyter notebooks
+    devices:
+      - "/dev/gpiomem:/dev/gpiomem" # For GPIO access
+      - "/dev/i2c-1:/dev/i2c-1" # For I2C devices
+    privileged: true # Required for full GPIO access
+    restart: unless-stopped
+    command: /bin/bash
+
+networks:
+  default:
+    name: rpi-network

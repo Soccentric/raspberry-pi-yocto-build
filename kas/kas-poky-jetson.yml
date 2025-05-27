@@ -1,0 +1,9 @@
+header:
+  version: 8
+  includes:
+    - machines/raspberrypi5.yml
+    - distros/poky.yml
+    - images/core-image-full-cmdline.yml
+    - repos/common.yml
+    - conf/local.yml
+    - conf/bblayers.yml

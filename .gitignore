@@ -1,0 +1,10 @@
+build/
+layers/
+.venv/
+.vscode/
+sstate-cache/
+downloads/
+artifacts/
+.kas_shell_history
+repo_tools.py
+*.sh 
