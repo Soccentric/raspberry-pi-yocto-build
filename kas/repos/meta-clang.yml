@@ -1,0 +1,8 @@
+header:
+  version: 8
+repos:
+  meta-swupdate:
+    url: https://github.com/kraj/meta-clang.git
+    path: layers/meta-clang
+    branch: master
+
