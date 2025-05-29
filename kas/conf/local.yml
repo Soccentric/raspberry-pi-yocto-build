@@ -8,7 +8,7 @@ local_conf_header:
     SDKMACHINE = "x86_64"
     USER_CLASSES = "buildstats"
     PATCHRESOLVE = "noop"
-    TOOLCHAIN ?= "clang"
+    # TOOLCHAIN ?= "clang"
 
     # Top level download and sstate cache directories
     DL_DIR = "${TOPDIR}/../downloads"

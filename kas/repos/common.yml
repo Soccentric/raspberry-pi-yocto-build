@@ -6,5 +6,4 @@ header:
     - meta-openembedded.yml
     - meta-qt5.yml
     - meta-swupdate.yml
-    - meta-ros.yml
     - meta-clang.yml
